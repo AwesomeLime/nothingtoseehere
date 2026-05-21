@@ -1,0 +1,26 @@
+Flyer Crash [2026-05-21 00:55:02]
+Unhandled UI Exception
+
+[Message]
+Object reference not set to an instance of an object.
+
+[StackTrace]
+   at Flyer.ChatWindow.OnClosing(CancelEventArgs e) in C:\Users\MrBaska\source\repos\Flyer\Flyer\Data\ChatWindow.xaml.cs:line 1109
+   at System.Windows.Window.WmClose()
+   at System.Windows.Window.WindowFilterMessage(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at System.Windows.Interop.HwndSource.PublicHooksFilterMessage(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at MS.Win32.HwndWrapper.WndProc(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at MS.Win32.HwndSubclass.DispatcherCallbackOperation(Object o)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[TargetSite]
+Void OnClosing(System.ComponentModel.CancelEventArgs)
+
+[Data]
+System.Collections.ListDictionaryInternal+NodeKeyValueCollection
+
+
+
+If Flyer crashed through no fault of your own, please report:
+https://t.me/chernovIWSYDT
