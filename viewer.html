@@ -671,10 +671,14 @@ function setUIVisible(visible) {
   if (!visible) {
     UI_IDS_EL.forEach(e => e && e.classList.add('hidden'));
     viewer.classList.add('zoomed-out');
+    viewer.style.backdropFilter = 'none';
+    viewer.style.webkitBackdropFilter = 'none';
     document.body.classList.add('bg-blur');
   } else {
     UI_IDS_EL.forEach(e => e && e.classList.remove('hidden'));
     viewer.classList.remove('zoomed-out');
+    viewer.style.backdropFilter = '';
+    viewer.style.webkitBackdropFilter = '';
     document.body.classList.remove('bg-blur');
   }
 }
