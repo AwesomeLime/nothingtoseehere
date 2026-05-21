@@ -251,6 +251,31 @@
       0%, 100% { opacity: 0.7; transform: scale(1); }
       50%       { opacity: 1;   transform: scale(1.04); }
     }
+    #viewer pre::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    }
+    #viewer pre::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #viewer pre::-webkit-scrollbar-thumb {
+      background: rgba(100,160,255,0.2);
+      border-radius: 3px;
+    }
+    #viewer pre::-webkit-scrollbar-thumb:hover {
+      background: rgba(100,160,255,0.4);
+    }
+    #viewer {
+      transition: background 0.25s ease, border-color 0.25s ease,
+                  box-shadow 0.25s ease, backdrop-filter 0.25s ease,
+                  max-width 0.35s cubic-bezier(0.22,1,0.36,1),
+                  max-height 0.35s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    #viewer pre {
+      transition: max-width 0.35s cubic-bezier(0.22,1,0.36,1),
+                  max-height 0.35s cubic-bezier(0.22,1,0.36,1);
+    }
   </style>
 </head>
 <body>
@@ -300,6 +325,12 @@
     </svg>
     скачать
   </a>
+  <button id="expand-btn" class="btn" style="display:none" onclick="toggleExpand()">
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+    <path d="M2 4.5V2h2.5M9.5 2H12v2.5M9.5 10H12V7.5M2 7.5V10h2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span id="expand-label">развернуть</span>
+</button>
 </div>
 
 <script>
@@ -403,6 +434,7 @@
     if (['mp4','webm','ogg','mov'].includes(ext)) return 'video';
     if (['jpg','jpeg','png','gif','webp','avif','svg'].includes(ext)) return 'image';
     if (['mp3','wav','flac','aac'].includes(ext)) return 'audio';
+    if (['txt','log','md','csv','json','xml','ini','env','yaml','yml'].includes(ext)) return 'text';
     return null;
   }
 
@@ -433,14 +465,17 @@
     return;
   }
 
-  /* ── размер файла ── */
   function fetchSize(callback) {
     fetch(fileUrl, { method: 'HEAD' })
       .then(r => {
         const size = r.headers.get('content-length');
-        callback(size ? formatSize(parseInt(size)) : '');
+        const modified = r.headers.get('last-modified');
+        const dateStr = modified
+          ? new Date(modified).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
+          : '';
+        callback(size ? formatSize(parseInt(size)) : '', dateStr);
       })
-      .catch(() => callback(''));
+      .catch(() => callback('', ''));
   }
 
   /* ── unsupported ── */
@@ -449,10 +484,11 @@
     unsupEl.classList.add('show');
     document.getElementById('unsupported-ext').textContent  = ext ? '.' + ext : '';
     document.getElementById('unsupported-name').textContent = rawName;
-    fetchSize(sizeStr => {
+    fetchSize((sizeStr, dateStr) => {
       const parts = [];
       if (ext) parts.push('.' + ext.toUpperCase());
       if (sizeStr) parts.push(sizeStr);
+      if (dateStr) parts.push(dateStr);
       document.getElementById('unsupported-meta').textContent = parts.join('  ·  ');
       metaEl.textContent = parts.join('  ·  ');
     });
@@ -471,11 +507,12 @@
       const d = Math.round(el.duration);
       const m = Math.floor(d / 60), s = d % 60;
       const dim = el.videoWidth ? `${el.videoWidth}×${el.videoHeight}` : '';
-      fetchSize(sizeStr => {
+      fetchSize((sizeStr, dateStr) => {
         const parts = [];
         if (dim) parts.push(dim);
         parts.push(`${m}:${String(s).padStart(2,'0')}`);
         if (sizeStr) parts.push(sizeStr);
+        if (dateStr) parts.push(dateStr);
         metaEl.textContent = parts.join('  ·  ');
       });
     });
@@ -486,10 +523,11 @@
     el.src = fileUrl;
     el.alt = rawName;
     el.addEventListener('load', () => {
-      fetchSize(sizeStr => {
+      fetchSize((sizeStr, dateStr) => {
         const parts = [];
         if (el.naturalWidth) parts.push(`${el.naturalWidth}×${el.naturalHeight}`);
         if (sizeStr) parts.push(sizeStr);
+        if (dateStr) parts.push(dateStr);
         metaEl.textContent = parts.join('  ·  ');
       });
     });
@@ -502,14 +540,45 @@
     el.addEventListener('loadedmetadata', () => {
       const d = Math.round(el.duration);
       const m = Math.floor(d / 60), s = d % 60;
-      fetchSize(sizeStr => {
+      fetchSize((sizeStr, dateStr) => {
         const parts = [`${m}:${String(s).padStart(2,'0')}`];
         if (sizeStr) parts.push(sizeStr);
+        if (dateStr) parts.push(dateStr);
         metaEl.textContent = parts.join('  ·  ');
       });
     });
     el.addEventListener('error', () => showError('Не удалось загрузить аудио'));
-  }
+  } else if (fileType === 'text') {
+  el = document.createElement('pre');
+    document.getElementById('expand-btn').style.display = '';
+  el.style.cssText = `
+    margin: 0;
+    padding: 2rem;
+    max-width: min(860px, calc(100vw - 4rem));
+    max-height: calc(100vh - 9rem);
+    overflow: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  `;
+  fetch(fileUrl)
+    .then(r => r.text())
+    .then(text => {
+      el.textContent = text;
+      fetchSize(sizeStr => {
+        const lines = text.split('\n').length;
+        const chars = text.length;
+        const parts = [`${lines} строк`, `${chars.toLocaleString('ru')} симв.`];
+        if (sizeStr) parts.push(sizeStr);
+        metaEl.textContent = parts.join('  ·  ');
+      });
+    })
+    .catch(() => showError('Не удалось загрузить файл'));
+}
 
   /* ── вставляем в DOM ── */
   if (fileType === 'audio' && el) {
@@ -589,8 +658,8 @@
   /* колесо */
   
   document.addEventListener('wheel', e => {
+    if (fileType === 'audio' || fileType === 'text') return;
     e.preventDefault();
-    if (fileType === 'audio') return;
     const STEP = 0.0012;
     const prevScale = scale;
     scale = Math.min(MAX, Math.max(MIN, scale - e.deltaY * STEP));
@@ -687,7 +756,23 @@ viewer.addEventListener('touchend', e => {
       el.style.animation = 'none';
     }, { once: true });
   });
-
+let expanded = false;
+  window.toggleExpand = function() {
+    expanded = !expanded;
+    const pre = document.querySelector('#viewer pre');
+    if (expanded) {
+      pre.style.maxWidth  = 'calc(100vw - 6rem)';
+      pre.style.maxHeight = 'calc(100vh - 12rem)';
+      viewer.style.maxWidth  = 'calc(100vw - 6rem)';
+      viewer.style.maxHeight = 'calc(100vh - 12rem)';
+    } else {
+      pre.style.maxWidth  = 'min(860px, calc(100vw - 4rem))';
+      pre.style.maxHeight = 'calc(100vh - 9rem)';
+      viewer.style.maxWidth  = '';
+      viewer.style.maxHeight = '';
+    }
+    document.getElementById('expand-label').textContent = expanded ? 'свернуть' : 'развернуть';
+  };
 })();
 </script>
 </body>
