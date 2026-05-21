@@ -353,6 +353,10 @@
 (async function () {
 const zoomHint = document.getElementById('zoom-hint');
 const isMobile = 'ontouchstart' in window;
+function buildMeta(parts) {
+  if (isMobile) parts = parts.slice(0, 2); // только первые 2 поля
+  return parts.join('  ·  ');
+}
   const lowPerf = (
     navigator.hardwareConcurrency <= 2 ||
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -532,7 +536,7 @@ const isMobile = 'ontouchstart' in window;
         parts.push(`${m}:${String(s).padStart(2,'0')}`);
         if (sizeStr) parts.push(sizeStr);
         if (dateStr) parts.push(dateStr);
-        metaEl.textContent = parts.join('  ·  ');
+        metaEl.textContent = buildMeta(parts);
       });
     });
     el.addEventListener('error', () => showError('Не удалось загрузить видео'));
@@ -547,7 +551,7 @@ const isMobile = 'ontouchstart' in window;
         if (el.naturalWidth) parts.push(`${el.naturalWidth}×${el.naturalHeight}`);
         if (sizeStr) parts.push(sizeStr);
         if (dateStr) parts.push(dateStr);
-        metaEl.textContent = parts.join('  ·  ');
+        metaEl.textContent = buildMeta(parts);
       });
     });
     if (isMobile) {
@@ -567,7 +571,7 @@ const isMobile = 'ontouchstart' in window;
         const parts = [`${m}:${String(s).padStart(2,'0')}`];
         if (sizeStr) parts.push(sizeStr);
         if (dateStr) parts.push(dateStr);
-        metaEl.textContent = parts.join('  ·  ');
+        metaEl.textContent = buildMeta(parts);
       });
     });
     el.addEventListener('error', () => showError('Не удалось загрузить аудио'));
@@ -808,6 +812,24 @@ if (fileType === 'image' || fileType === 'video') {
     node.style.animation = 'none';
   }, { once: true });
 });
+let expanded = false;
+window.toggleExpand = function() {
+  expanded = !expanded;
+  const pre = document.querySelector('#viewer pre');
+  if (!pre) return;
+  if (expanded) {
+    pre.style.maxWidth   = 'calc(100vw - 4rem)';
+    pre.style.maxHeight  = 'calc(100vh - 7rem)';
+    viewer.style.maxWidth  = 'calc(100vw - 4rem)';
+    viewer.style.maxHeight = 'calc(100vh - 7rem)';
+  } else {
+    pre.style.maxWidth   = 'min(860px, calc(100vw - 4rem))';
+    pre.style.maxHeight  = 'calc(100vh - 9rem)';
+    viewer.style.maxWidth  = 'min(960px, 100%)';
+    viewer.style.maxHeight = 'calc(100vh - 9rem)';
+  }
+  document.getElementById('expand-label').textContent = expanded ? 'свернуть' : 'развернуть';
+};
 })();
 </script>
 </body>
