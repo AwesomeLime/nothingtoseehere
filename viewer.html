@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nothing to see here...</title>
-      <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -43,14 +43,13 @@
       will-change: transform;
     }
 
-    /* page blur when zoomed */
-    body.zoomed #canvas,
-    body.zoomed #fog {
+    body.bg-blur #canvas,
+    body.bg-blur #fog {
       filter: blur(18px);
       transition: filter 0.3s ease;
     }
-    body:not(.zoomed) #canvas,
-    body:not(.zoomed) #fog {
+    body:not(.bg-blur) #canvas,
+    body:not(.bg-blur) #fog {
       filter: blur(0px);
       transition: filter 0.3s ease;
     }
@@ -62,7 +61,6 @@
       padding: 4rem 2rem 5rem;
     }
 
-    /* ── viewer box ── */
     #viewer {
       position: relative;
       display: inline-flex;
@@ -76,14 +74,16 @@
       box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(100,160,255,0.04);
       overflow: hidden;
       animation: fadeIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
-      transition: max-width 0.35s cubic-bezier(0.22,1,0.36,1),
-                  max-height 0.35s cubic-bezier(0.22,1,0.36,1);
+      transition: background 0.25s ease, border-color 0.25s ease,
+                  box-shadow 0.25s ease, backdrop-filter 0.25s ease;
     }
 
-    /* zoomed state — nearly full viewport */
-    body.zoomed #viewer {
-      max-width: min(calc(100vw - 3rem), 2400px);
-      max-height: calc(100vh - 6rem);
+    /* скрываем подложку при зуме */
+    #viewer.zoomed-out {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
     }
 
     @keyframes fadeIn {
@@ -91,7 +91,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* media fills the box tightly */
     #viewer video,
     #viewer img {
       display: block;
@@ -101,22 +100,14 @@
       transform-origin: center center;
     }
 
-    body.zoomed #viewer video,
-    body.zoomed #viewer img {
-      max-width: min(calc(100vw - 3rem), 2400px);
-      max-height: calc(100vh - 6rem);
-    }
-
     #viewer video { background: #000; }
 
     #viewer audio {
       display: block;
       width: 340px;
-      margin: 3rem auto;
       filter: invert(1) hue-rotate(180deg) brightness(0.75);
     }
 
-    /* unsupported file icon view */
     #unsupported {
       display: none;
       flex-direction: column;
@@ -159,7 +150,6 @@
       text-align: center;
     }
 
-    /* error state */
     #error {
       display: none;
       flex-direction: column; align-items: center; gap: 1rem;
@@ -169,13 +159,52 @@
     #error .icon { font-size: 2.4rem; opacity: 0.4; }
     #error.show { display: flex; }
 
-    /* ── info bar ── */
     #info {
       position: fixed;
       bottom: 1.6rem; left: 1.8rem;
       z-index: 3;
       display: flex; flex-direction: column; gap: 0.3rem;
       animation: fadeIn 0.6s 0.2s cubic-bezier(0.22,1,0.36,1) both;
+      transition: opacity 0.25s ease;
+    }
+
+    #actions {
+      position: fixed;
+      bottom: 1.6rem; right: 1.8rem;
+      z-index: 3;
+      display: flex; gap: 0.6rem;
+      animation: fadeIn 0.6s 0.25s cubic-bezier(0.22,1,0.36,1) both;
+      transition: opacity 0.25s ease;
+    }
+
+    #back {
+      position: fixed;
+      top: 1.6rem; left: 1.8rem;
+      z-index: 3;
+      animation: fadeIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+      transition: opacity 0.25s ease;
+    }
+
+    #info, #actions, #back {
+      transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    #info.hidden {
+      opacity: 0 !important;
+      pointer-events: none;
+      transform: translateY(6px);
+    }
+
+    #actions.hidden {
+      opacity: 0 !important;
+      pointer-events: none;
+      transform: translateY(6px);
+    }
+
+    #back.hidden {
+      opacity: 0 !important;
+      pointer-events: none;
+      transform: translateY(-6px);
     }
 
     #filename {
@@ -190,16 +219,6 @@
       color: var(--muted);
       letter-spacing: 0.03em;
     }
-
-    /* ── action buttons ── */
-    #actions {
-      position: fixed;
-      bottom: 1.6rem; right: 1.8rem;
-      z-index: 3;
-      display: flex; gap: 0.6rem;
-      animation: fadeIn 0.6s 0.25s cubic-bezier(0.22,1,0.36,1) both;
-    }
-
     .btn {
       display: flex; align-items: center; gap: 0.45rem;
       padding: 0.45rem 0.9rem;
@@ -221,28 +240,13 @@
     }
     .btn svg { opacity: 0.7; flex-shrink: 0; }
 
-    /* zoom button hidden when not applicable */
-    #zoom-btn { display: none; }
-    #zoom-btn.visible { display: flex; }
-
-    #back {
-      position: fixed;
-      top: 1.6rem; left: 1.8rem;
-      z-index: 3;
-      animation: fadeIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
-    }
-    #viewer.audio-mode {
-      background: transparent;
-      border-color: transparent;
-      box-shadow: none;
-      backdrop-filter: none;
-    }
     .no-animation #canvas,
     .no-animation #fog { display: none; }
     .no-animation #viewer,
     .no-animation #info,
     .no-animation #actions,
     .no-animation #back { animation: none; opacity: 1; transform: none; }
+
     @keyframes pulse {
       0%, 100% { opacity: 0.7; transform: scale(1); }
       50%       { opacity: 1;   transform: scale(1.04); }
@@ -258,11 +262,10 @@
   <div id="viewer">
     <div id="error">
       <span class="icon">⚠</span>
-      <span id="error-msg">Файл не найден</span>
+      <span id="error-msg">Файл не найден на сервере</span>
     </div>
     <div id="unsupported">
       <div class="file-icon-wrap">
-        <!-- generic file SVG -->
         <svg viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 6C4 2.686 6.686 0 10 0H46L68 22V82C68 85.314 65.314 88 62 88H10C6.686 88 4 85.314 4 82V6Z" fill="rgba(100,160,255,0.08)" stroke="rgba(100,160,255,0.22)" stroke-width="1.2"/>
           <path d="M46 0L68 22H50C47.791 22 46 20.209 46 18V0Z" fill="rgba(100,160,255,0.15)" stroke="rgba(100,160,255,0.22)" stroke-width="1.2"/>
@@ -291,7 +294,6 @@
 </div>
 
 <div id="actions">
-  <!-- zoom toggle -->
   <a id="dl-btn" class="btn" download>
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
       <path d="M6 2v6M3 6l3 3 3-3M2 10h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -301,7 +303,7 @@
 </div>
 
 <script>
-(function () {
+(async function () {
 
   const lowPerf = (
     navigator.hardwareConcurrency <= 2 ||
@@ -368,17 +370,7 @@
     ploop();
   }
 
-  /* ── zoom ── */
-  let zoomed = false;
-  window.toggleZoom = function() {
-    zoomed = !zoomed;
-    document.body.classList.toggle('zoomed', zoomed);
-    document.getElementById('zoom-icon-expand').style.display  = zoomed ? 'none'  : '';
-    document.getElementById('zoom-icon-collapse').style.display = zoomed ? ''     : 'none';
-    document.getElementById('zoom-label').textContent = zoomed ? 'уменьшить' : 'увеличить';
-  };
-
-/* ── file loading ── */
+  /* ── file loading ── */
   const params   = new URLSearchParams(location.search);
   const fileUrl  = params.get('file');
   const viewer   = document.getElementById('viewer');
@@ -387,6 +379,8 @@
   const fnEl     = document.getElementById('filename');
   const metaEl   = document.getElementById('meta');
   const dlBtn    = document.getElementById('dl-btn');
+
+  dlBtn.style.display = 'none';
 
   function showError(msg) {
     errorMsg.textContent = msg;
@@ -413,19 +407,33 @@
   }
 
   if (!fileUrl) {
-    showError('Не указан файл. Используй ?file=имя_файла');
     fnEl.textContent = 'нет файла';
     return;
   }
 
-  const rawName  = decodeURIComponent(fileUrl.split('/').pop());
-  const ext      = getExt(rawName);
+  const rawName = decodeURIComponent(fileUrl.split('/').pop());
+  const ext     = getExt(rawName);
   const fileType = getType(ext);
 
   fnEl.textContent = rawName;
   dlBtn.href = fileUrl;
   dlBtn.setAttribute('download', rawName);
 
+  /* ── проверяем существование файла ── */
+  try {
+    const check = await fetch(fileUrl, { method: 'HEAD' });
+    const ct = check.headers.get('content-type') || '';
+    if (!check.ok || ct.startsWith('text/html')) {
+      showError('Файл не найден на сервере');
+      return;
+    }
+    dlBtn.style.display = '';
+  } catch {
+    showError('Не удалось подключиться к серверу');
+    return;
+  }
+
+  /* ── размер файла ── */
   function fetchSize(callback) {
     fetch(fileUrl, { method: 'HEAD' })
       .then(r => {
@@ -435,11 +443,11 @@
       .catch(() => callback(''));
   }
 
-  /* unsupported */
+  /* ── unsupported ── */
   if (!fileType) {
     const unsupEl = document.getElementById('unsupported');
     unsupEl.classList.add('show');
-    document.getElementById('unsupported-ext').textContent = ext ? '.' + ext : '';
+    document.getElementById('unsupported-ext').textContent  = ext ? '.' + ext : '';
     document.getElementById('unsupported-name').textContent = rawName;
     fetchSize(sizeStr => {
       const parts = [];
@@ -448,7 +456,7 @@
       document.getElementById('unsupported-meta').textContent = parts.join('  ·  ');
       metaEl.textContent = parts.join('  ·  ');
     });
-    return; // <-- выходим, дальше не идём
+    return;
   }
 
   /* ── создаём медиа-элемент ── */
@@ -487,8 +495,7 @@
     });
     el.addEventListener('error', () => showError('Не удалось загрузить изображение'));
 
-} else if (fileType === 'audio') {
-    // НЕ добавляем audio-mode — пусть viewer остаётся с рамкой и тенью
+  } else if (fileType === 'audio') {
     el = document.createElement('audio');
     el.controls = true;
     el.src = fileUrl;
@@ -503,13 +510,11 @@
     });
     el.addEventListener('error', () => showError('Не удалось загрузить аудио'));
   }
-  
 
   /* ── вставляем в DOM ── */
   if (fileType === 'audio' && el) {
     const audioWrap = document.createElement('div');
-    // уменьшил padding
-audioWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:0rem;padding:2.5rem 1rem 1rem;';
+    audioWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:1rem;padding:3.5rem 3rem;';
 
     const iconWrap = document.createElement('div');
     iconWrap.style.cssText = 'position:relative;width:72px;height:88px;';
@@ -519,52 +524,170 @@ audioWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center
               fill="rgba(100,160,255,0.08)" stroke="rgba(100,160,255,0.22)" stroke-width="1.2"/>
         <path d="M46 0L68 22H50C47.791 22 46 20.209 46 18V0Z"
               fill="rgba(100,160,255,0.15)" stroke="rgba(100,160,255,0.22)" stroke-width="1.2"/>
-
-        <!-- звуковые волны по центру иконки (y≈44) -->
-        <!-- источник — маленький прямоугольник -->
         <rect x="30" y="40" width="5" height="9" rx="1.5" fill="rgba(100,160,255,0.65)"/>
-        <!-- треугольник-рупор -->
         <path d="M35 41.5 L41 37 L41 52 L35 47.5Z" fill="rgba(100,160,255,0.5)"/>
-        <!-- волна 1 -->
         <path d="M43.5 40 C46 42 46 47 43.5 49" stroke="rgba(100,160,255,0.6)" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-        <!-- волна 2 -->
         <path d="M46 37.5 C50 41 50 48 46 51.5" stroke="rgba(100,160,255,0.4)" stroke-width="1.4" fill="none" stroke-linecap="round"/>
       </svg>
-      <span style="
-        position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
-        font-size:0.65rem;font-weight:500;letter-spacing:0.06em;
-        color:#d0dff5;text-transform:uppercase;opacity:0.85;
-        font-family:'JetBrains Mono',monospace;white-space:nowrap;
-      ">.${ext}</span>
+      <span style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font-size:0.65rem;font-weight:500;letter-spacing:0.06em;color:#d0dff5;text-transform:uppercase;opacity:0.85;font-family:'JetBrains Mono',monospace;white-space:nowrap;">.${ext}</span>
     `;
 
     const nameEl = document.createElement('div');
     nameEl.textContent = rawName;
-    nameEl.style.cssText = `
-      font-size:0.9rem;font-weight:500;color:#d0dff5;
-      text-align:center;word-break:break-all;max-width:260px;
-      font-family:'JetBrains Mono',monospace;
-    `;
+    nameEl.style.cssText = 'font-size:0.9rem;font-weight:500;color:#d0dff5;text-align:center;word-break:break-all;max-width:260px;font-family:"JetBrains Mono",monospace;';
 
     audioWrap.append(iconWrap, nameEl, el);
     viewer.appendChild(audioWrap);
-        } else if (el) {
-      // video и image — напрямую в viewer
-      viewer.appendChild(el);
-    }
+  } else if (el) {
+    viewer.appendChild(el);
+  }
 
-  /* ── wheel zoom ── */
+  /* ── зум + пан ── */
+  const UI_IDS = ['info', 'actions', 'back'];
   let scale = 1;
-  const MIN = 1, MAX = 4, STEP = 0.001;
+  let panX = 0, panY = 0;
+  let isPanning = false;
+  let startX = 0, startY = 0;
+  let uiTimer = null;
+  const MIN = 1, MAX = 4;
 
+  /* ограничиваем пан чтобы картинка не уходила за экран */
+  function clampPan() {
+    if (!el || scale <= 1) { panX = 0; panY = 0; return; }
+    const rect = el.getBoundingClientRect();
+    // размер картинки после масштаба
+    const scaledW = rect.width;
+    const scaledH = rect.height;
+    const maxX = Math.max(0, (scaledW - innerWidth)  / 2 + scaledW * 0.1);
+    const maxY = Math.max(0, (scaledH - innerHeight) / 2 + scaledH * 0.1);
+    panX = Math.min(maxX, Math.max(-maxX, panX));
+    panY = Math.min(maxY, Math.max(-maxY, panY));
+  }
+
+  function applyTransform() {
+    if (!el) return;
+    clampPan();
+    el.style.transform = `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`;
+    el.style.transition = isPanning ? 'none' : 'transform 0.08s ease-out';
+  }
+
+  function setUIVisible(visible) {
+    clearTimeout(uiTimer);
+    if (!visible) {
+      UI_IDS.forEach(id => document.getElementById(id).classList.add('hidden'));
+      viewer.classList.add('zoomed-out');
+      document.body.classList.add('bg-blur');
+    } else {
+      uiTimer = setTimeout(() => {
+        UI_IDS.forEach(id => document.getElementById(id).classList.remove('hidden'));
+      }, 0);
+      viewer.classList.remove('zoomed-out');
+      document.body.classList.remove('bg-blur');
+    }
+  }
+
+  /* колесо */
+  
   document.addEventListener('wheel', e => {
     e.preventDefault();
+    if (fileType === 'audio') return;
+    const STEP = 0.0012;
+    const prevScale = scale;
     scale = Math.min(MAX, Math.max(MIN, scale - e.deltaY * STEP));
+
+    if (el && scale !== prevScale) {
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - (rect.left + rect.width  / 2);
+      const cy = e.clientY - (rect.top  + rect.height / 2);
+      panX += cx * (1 - scale / prevScale);
+      panY += cy * (1 - scale / prevScale);
+    }
+
     const isZoomed = scale > 1.01;
-    document.body.classList.toggle('zoomed', isZoomed);
-    if (el) el.style.transform = `scale(${scale})`;
     viewer.style.overflow = isZoomed ? 'visible' : 'hidden';
+    setUIVisible(!isZoomed);
+    applyTransform();
+
+    if (!isZoomed) { panX = 0; panY = 0; }
   }, { passive: false });
+
+  /* перетаскивание мышью */
+  viewer.addEventListener('mousedown', e => {
+    if (scale <= 1) return;
+    isPanning = true;
+    startX = e.clientX - panX;
+    startY = e.clientY - panY;
+    viewer.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isPanning) return;
+    panX = e.clientX - startX;
+    panY = e.clientY - startY;
+    applyTransform();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isPanning) return;
+    isPanning = false;
+    viewer.style.cursor = scale > 1 ? 'grab' : '';
+  });
+
+  viewer.addEventListener('mousemove', () => {
+    if (!isPanning) viewer.style.cursor = scale > 1 ? 'grab' : '';
+  });
+
+  /* тач */
+  let lastTouchDist = null;
+  let touchStartX = 0, touchStartY = 0;
+
+  viewer.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      lastTouchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    } else if (e.touches.length === 1 && scale > 1) {
+      isPanning = true;
+      touchStartX = e.touches[0].clientX - panX;
+      touchStartY = e.touches[0].clientY - panY;
+    }
+  }, { passive: true });
+
+  viewer.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && lastTouchDist !== null) {
+      e.preventDefault();
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      scale = Math.min(MAX, Math.max(MIN, scale * (dist / lastTouchDist)));
+      lastTouchDist = dist;
+      const isZoomed = scale > 1.01;
+      viewer.style.overflow = isZoomed ? 'visible' : 'hidden';
+      setUIVisible(!isZoomed);
+      applyTransform();
+    } else if (e.touches.length === 1 && isPanning) {
+      panX = e.touches[0].clientX - touchStartX;
+      panY = e.touches[0].clientY - touchStartY;
+      applyTransform();
+    }
+  }, { passive: false });
+
+viewer.addEventListener('touchend', e => {
+    if (e.touches.length < 2) lastTouchDist = null;
+    if (e.touches.length === 0) isPanning = false;
+  });
+
+  /* снимаем fadeIn после завершения чтобы transition работал */
+  ['info', 'actions', 'back'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('animationend', () => {
+      el.style.animation = 'none';
+    }, { once: true });
+  });
+
 })();
 </script>
 </body>
