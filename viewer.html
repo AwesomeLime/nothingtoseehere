@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Nothing to see here...</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,6 +28,7 @@
       color: var(--text);
       font-family: 'JetBrains Mono', monospace;
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent
     }
 
     #canvas {
@@ -233,6 +234,7 @@
       text-decoration: none;
       transition: background 0.15s, border-color 0.15s;
       user-select: none;
+      -webkit-tap-highlight-color: transparent
     }
     .btn:hover {
       background: var(--btn-hover);
@@ -276,6 +278,20 @@
       transition: max-width 0.35s cubic-bezier(0.22,1,0.36,1),
                   max-height 0.35s cubic-bezier(0.22,1,0.36,1);
     }
+    #zoom-hint {
+  position: fixed;
+  bottom: 2.4rem;
+  left: 50%; transform: translateX(-50%);
+  z-index: 4;
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  white-space: nowrap;
+}
+#zoom-hint.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -332,10 +348,11 @@
   <span id="expand-label">развернуть</span>
 </button>
 </div>
-
+<div id="zoom-hint">двойной тап — зум</div>
 <script>
 (async function () {
-
+const zoomHint = document.getElementById('zoom-hint');
+const isMobile = 'ontouchstart' in window;
   const lowPerf = (
     navigator.hardwareConcurrency <= 2 ||
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -351,7 +368,7 @@
     resize();
     window.addEventListener('resize', resize);
 
-    const COUNT = Math.min(160, Math.floor(innerWidth * 0.12));
+    const COUNT = Math.min(isMobile ? 80 : 160, Math.floor(innerWidth * 0.12));
     class P {
       constructor(ry) { this.reset(ry); }
       reset(ry) {
@@ -384,14 +401,14 @@
       requestAnimationFrame(animate);
     }
     animate();
-
+    if (!isMobile) {
     const fog = document.getElementById('fog');
     let tx = 0, ty = 0, cx = 0, cy = 0;
     document.addEventListener('mousemove', e => {
       tx = (e.clientX - innerWidth  / 2) / (innerWidth  / 2);
       ty = (e.clientY - innerHeight / 2) / (innerHeight / 2);
     });
-    function ploop() {
+      function ploop() {
       cx += (tx - cx) * 0.06;
       cy += (ty - cy) * 0.06;
       fog.style.transform    = `translate(${cx * 22}px, ${cy * 14}px)`;
@@ -399,6 +416,7 @@
       requestAnimationFrame(ploop);
     }
     ploop();
+  }
   }
 
   /* ── file loading ── */
@@ -502,6 +520,7 @@
     el = document.createElement('video');
     el.controls = true;
     el.autoplay = false;
+    el.playsinline = true;
     el.src = fileUrl;
     el.addEventListener('loadedmetadata', () => {
       const d = Math.round(el.duration);
@@ -531,6 +550,10 @@
         metaEl.textContent = parts.join('  ·  ');
       });
     });
+    if (isMobile) {
+      zoomHint.classList.add('show');
+      setTimeout(() => zoomHint.classList.remove('show'), 2600);
+    }
     el.addEventListener('error', () => showError('Не удалось загрузить изображение'));
 
   } else if (fileType === 'audio') {
@@ -611,168 +634,180 @@
     viewer.appendChild(el);
   }
 
-  /* ── зум + пан ── */
-  const UI_IDS = ['info', 'actions', 'back'];
-  let scale = 1;
-  let panX = 0, panY = 0;
-  let isPanning = false;
-  let startX = 0, startY = 0;
-  let uiTimer = null;
-  const MIN = 1, MAX = 4;
+/* ═══════════════════════════════════════════
+   ── ЗУМ + ПАН (мышь + тач + double-tap) ──
+   ═══════════════════════════════════════════ */
+const UI_IDS_EL = ['info', 'actions', 'back'].map(id => document.getElementById(id));
+let scale = 1;
+let panX = 0, panY = 0;
+let isPanning = false;
+let startX = 0, startY = 0;
+let uiVisible = true;
+const MIN = 1, MAX = 6;
 
-  /* ограничиваем пан чтобы картинка не уходила за экран */
-  function clampPan() {
-    if (!el || scale <= 1) { panX = 0; panY = 0; return; }
+function clampPan() {
+  if (!el || scale <= 1) { panX = 0; panY = 0; return; }
+  const rect = el.getBoundingClientRect();
+  const maxX = Math.max(0, (rect.width  * scale - innerWidth)  / 2 + rect.width  * 0.1);
+  const maxY = Math.max(0, (rect.height * scale - innerHeight) / 2 + rect.height * 0.1);
+  panX = Math.min(maxX, Math.max(-maxX, panX));
+  panY = Math.min(maxY, Math.max(-maxY, panY));
+}
+
+function applyTransform(animate = false) {
+  if (!el) return;
+  clampPan();
+  el.style.transition = animate ? 'transform 0.22s cubic-bezier(0.22,1,0.36,1)' : 'none';
+  el.style.transform  = `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`;
+}
+
+function setUIVisible(visible) {
+  if (uiVisible === visible) return;
+  uiVisible = visible;
+  if (!visible) {
+    UI_IDS_EL.forEach(e => e && e.classList.add('hidden'));
+    viewer.classList.add('zoomed-out');
+    document.body.classList.add('bg-blur');
+  } else {
+    UI_IDS_EL.forEach(e => e && e.classList.remove('hidden'));
+    viewer.classList.remove('zoomed-out');
+    document.body.classList.remove('bg-blur');
+  }
+}
+
+function onZoomChange() {
+  const isZoomed = scale > 1.01;
+  viewer.style.overflow = isZoomed ? 'visible' : 'hidden';
+  setUIVisible(!isZoomed);
+  if (!isZoomed) { panX = 0; panY = 0; }
+}
+
+/* колесо */
+document.addEventListener('wheel', e => {
+  if (fileType === 'audio' || fileType === 'text') return;
+  e.preventDefault();
+  const STEP = 0.0012;
+  const prev = scale;
+  scale = Math.min(MAX, Math.max(MIN, scale - e.deltaY * STEP));
+  if (el && scale !== prev) {
     const rect = el.getBoundingClientRect();
-    // размер картинки после масштаба
-    const scaledW = rect.width;
-    const scaledH = rect.height;
-    const maxX = Math.max(0, (scaledW - innerWidth)  / 2 + scaledW * 0.1);
-    const maxY = Math.max(0, (scaledH - innerHeight) / 2 + scaledH * 0.1);
-    panX = Math.min(maxX, Math.max(-maxX, panX));
-    panY = Math.min(maxY, Math.max(-maxY, panY));
+    const cx   = e.clientX - (rect.left + rect.width  / 2);
+    const cy   = e.clientY - (rect.top  + rect.height / 2);
+    panX += cx * (1 - scale / prev);
+    panY += cy * (1 - scale / prev);
   }
+  onZoomChange();
+  applyTransform();
+}, { passive: false });
 
-  function applyTransform() {
-    if (!el) return;
-    clampPan();
-    el.style.transform = `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`;
-    el.style.transition = isPanning ? 'none' : 'transform 0.08s ease-out';
-  }
+/* мышь: пан */
+viewer.addEventListener('mousedown', e => {
+  if (scale <= 1) return;
+  isPanning = true;
+  startX = e.clientX - panX;
+  startY = e.clientY - panY;
+  viewer.style.cursor = 'grabbing';
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  panX = e.clientX - startX;
+  panY = e.clientY - startY;
+  applyTransform();
+});
+document.addEventListener('mouseup', () => {
+  if (!isPanning) return;
+  isPanning = false;
+  viewer.style.cursor = scale > 1 ? 'grab' : '';
+});
+viewer.addEventListener('mousemove', () => {
+  if (!isPanning) viewer.style.cursor = scale > 1 ? 'grab' : '';
+});
 
-  function setUIVisible(visible) {
-    clearTimeout(uiTimer);
-    if (!visible) {
-      UI_IDS.forEach(id => document.getElementById(id).classList.add('hidden'));
-      viewer.classList.add('zoomed-out');
-      document.body.classList.add('bg-blur');
-    } else {
-      uiTimer = setTimeout(() => {
-        UI_IDS.forEach(id => document.getElementById(id).classList.remove('hidden'));
-      }, 0);
-      viewer.classList.remove('zoomed-out');
-      document.body.classList.remove('bg-blur');
-    }
-  }
-
-  /* колесо */
-  
-  document.addEventListener('wheel', e => {
-    if (fileType === 'audio' || fileType === 'text') return;
-    e.preventDefault();
-    const STEP = 0.0012;
-    const prevScale = scale;
-    scale = Math.min(MAX, Math.max(MIN, scale - e.deltaY * STEP));
-
-    if (el && scale !== prevScale) {
-      const rect = el.getBoundingClientRect();
-      const cx = e.clientX - (rect.left + rect.width  / 2);
-      const cy = e.clientY - (rect.top  + rect.height / 2);
-      panX += cx * (1 - scale / prevScale);
-      panY += cy * (1 - scale / prevScale);
-    }
-
-    const isZoomed = scale > 1.01;
-    viewer.style.overflow = isZoomed ? 'visible' : 'hidden';
-    setUIVisible(!isZoomed);
-    applyTransform();
-
-    if (!isZoomed) { panX = 0; panY = 0; }
-  }, { passive: false });
-
-  /* перетаскивание мышью */
-  viewer.addEventListener('mousedown', e => {
-    if (scale <= 1) return;
-    isPanning = true;
-    startX = e.clientX - panX;
-    startY = e.clientY - panY;
-    viewer.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!isPanning) return;
-    panX = e.clientX - startX;
-    panY = e.clientY - startY;
-    applyTransform();
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!isPanning) return;
-    isPanning = false;
-    viewer.style.cursor = scale > 1 ? 'grab' : '';
-  });
-
-  viewer.addEventListener('mousemove', () => {
-    if (!isPanning) viewer.style.cursor = scale > 1 ? 'grab' : '';
-  });
-
-  /* тач */
-  let lastTouchDist = null;
-  let touchStartX = 0, touchStartY = 0;
+/* тач: пинч-зум + пан + double-tap */
+if (fileType === 'image' || fileType === 'video') {
+  let lastTouchDist  = null;
+  let lastTapTime    = 0;
+  let touchPanActive = false;
+  let tStartX = 0, tStartY = 0;
+  let pinchCenterX = 0, pinchCenterY = 0;
 
   viewer.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
-      lastTouchDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-    } else if (e.touches.length === 1 && scale > 1) {
-      isPanning = true;
-      touchStartX = e.touches[0].clientX - panX;
-      touchStartY = e.touches[0].clientY - panY;
+      touchPanActive = false;
+      const t0 = e.touches[0], t1 = e.touches[1];
+      lastTouchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      pinchCenterX  = (t0.clientX + t1.clientX) / 2;
+      pinchCenterY  = (t0.clientY + t1.clientY) / 2;
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      const t   = e.touches[0];
+      if (now - lastTapTime < 300) {
+        lastTapTime = 0;
+        if (scale > 1.01) {
+          scale = 1; panX = 0; panY = 0;
+        } else {
+          scale = 2.5;
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            panX = (t.clientX - (rect.left + rect.width  / 2)) * (1 - scale);
+            panY = (t.clientY - (rect.top  + rect.height / 2)) * (1 - scale);
+          }
+        }
+        onZoomChange();
+        applyTransform(true);
+        e.preventDefault();
+        return;
+      }
+      lastTapTime = now;
+      if (scale > 1) {
+        touchPanActive = true;
+        tStartX = t.clientX - panX;
+        tStartY = t.clientY - panY;
+      }
     }
-  }, { passive: true });
+  }, { passive: false });
 
   viewer.addEventListener('touchmove', e => {
     if (e.touches.length === 2 && lastTouchDist !== null) {
       e.preventDefault();
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
+      const t0   = e.touches[0], t1 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      const prev = scale;
       scale = Math.min(MAX, Math.max(MIN, scale * (dist / lastTouchDist)));
+      const newCX = (t0.clientX + t1.clientX) / 2;
+      const newCY = (t0.clientY + t1.clientY) / 2;
+      if (el && scale !== prev) {
+        panX += (newCX - pinchCenterX);
+        panY += (newCY - pinchCenterY);
+      }
+      pinchCenterX  = newCX;
+      pinchCenterY  = newCY;
       lastTouchDist = dist;
-      const isZoomed = scale > 1.01;
-      viewer.style.overflow = isZoomed ? 'visible' : 'hidden';
-      setUIVisible(!isZoomed);
+      onZoomChange();
       applyTransform();
-    } else if (e.touches.length === 1 && isPanning) {
-      panX = e.touches[0].clientX - touchStartX;
-      panY = e.touches[0].clientY - touchStartY;
+    } else if (e.touches.length === 1 && touchPanActive) {
+      e.preventDefault();
+      panX = e.touches[0].clientX - tStartX;
+      panY = e.touches[0].clientY - tStartY;
       applyTransform();
     }
   }, { passive: false });
 
-viewer.addEventListener('touchend', e => {
+  viewer.addEventListener('touchend', e => {
     if (e.touches.length < 2) lastTouchDist = null;
-    if (e.touches.length === 0) isPanning = false;
+    if (e.touches.length === 0) touchPanActive = false;
   });
+}
 
-  /* снимаем fadeIn после завершения чтобы transition работал */
-  ['info', 'actions', 'back'].forEach(id => {
-    const el = document.getElementById(id);
-    el.addEventListener('animationend', () => {
-      el.style.animation = 'none';
-    }, { once: true });
-  });
-let expanded = false;
-  window.toggleExpand = function() {
-    expanded = !expanded;
-    const pre = document.querySelector('#viewer pre');
-    if (expanded) {
-      pre.style.maxWidth  = 'calc(100vw - 6rem)';
-      pre.style.maxHeight = 'calc(100vh - 12rem)';
-      viewer.style.maxWidth  = 'calc(100vw - 6rem)';
-      viewer.style.maxHeight = 'calc(100vh - 12rem)';
-    } else {
-      pre.style.maxWidth  = 'min(860px, calc(100vw - 4rem))';
-      pre.style.maxHeight = 'calc(100vh - 9rem)';
-      viewer.style.maxWidth  = '';
-      viewer.style.maxHeight = '';
-    }
-    document.getElementById('expand-label').textContent = expanded ? 'свернуть' : 'развернуть';
-  };
+/* снимаем fadeIn */
+['info', 'actions', 'back'].forEach(id => {
+  const node = document.getElementById(id);
+  if (node) node.addEventListener('animationend', () => {
+    node.style.animation = 'none';
+  }, { once: true });
+});
 })();
 </script>
 </body>
